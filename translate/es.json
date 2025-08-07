@@ -1,0 +1,8 @@
+{
+    "Alert": "Alerta",
+    "PluriOS Swapfile Manager": "Administrador de Swapfile de PluriOS",
+    "No Swapfile found, do you want to create one?": "No se encontró ningún Swapfile, ¿desea crearlo?",
+    "Add": "Agregar",
+    "Cancel": "Cancelar",
+    "Creating SWAPFILE": "Creando SWAPFILE"
+  }
