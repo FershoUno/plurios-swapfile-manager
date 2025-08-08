@@ -15,13 +15,12 @@ translate() {
     if [ ! -f /etc/plurios-release ]; then
         local LNG=$(locale | grep LANG | cut -d= -f2 | cut -d_ -f1)
     else
-        if grep -q Pro /etc/plurios-release ; then
+        if grep -q Pro plurios-release ; then
         LNG=es
-        elif grep -q Aymara /etc/plurios-release ; then
+        elif grep -q Aymara plurios-release ; then
         LNG=ay
         fi
     fi
-#    local TRANSLATION_FILE="/usr/share/plurios/plurios-swapfile-manager/translate/$LNG.json"
     local TRANSLATION_FILE="translate/$LNG.json"
     if [ -f "$TRANSLATION_FILE" ]; then
         local TRANSLATION=$(jq -r --arg TEXT "$TEXT" '.[$TEXT]' "$TRANSLATION_FILE")
@@ -36,30 +35,40 @@ translate() {
 }
 
 detect_the_swap_type() {
-    SWAP_TYPE=0
-    while read -r name _; do
-        if [[ "$name" == /dev/zram* ]]; then
-            echo "ZRAM swap detectado: $name"
-            SWAP_TYPE="ZRAM"
-        elif [[ -f "$name" ]]; then
-            echo "Swapfile detectado: $name"
-            SWAP_TYPE="SWAPFILE"
-        elif [[ "$name" == /dev/* ]]; then
-            echo "Partición swap detectada: $name"
-            SWAP_TYPE="PARTITION"
-        fi
+    local NAME
+    while read -r NAME _; do
+        case "$NAME" in
+            /dev/zram*)
+                    MESSAGE_SWAP=$(echo "$(translate 'ZRAM detected:') $NAME")
+                    MESSAGE_TEXT=$(echo "$(translate 'It is not possible to manage this type of swap.')")
+                return
+                ;;
+            /dev/*)
+                    MESSAGE_SWAP=$(echo "$(translate 'Swap partition detected:') $NAME")
+                    MESSAGE_TEXT=$(echo "$(translate 'It is not possible to manage this type of swap.')")
+                return
+                ;;
+            *)
+                if [[ -f "$NAME" ]]; then
+                    MESSAGE_SWAP=$(echo "$(translate 'Swapfile detected:') $NAME")
+                    MESSAGE_TEXT=$(echo "$(translate 'It is possible to manage this type of swap.')")
+                    return
+                fi
+                ;;
+        esac
     done < <(swapon --noheadings --show=NAME)
-
-    if [[ $SWAP_TYPE -eq 0 ]]; then
-        echo "No hay swap activa"
-    fi
+    MESSAGE_TEXT=$(echo "$(translate 'No active swap found.')")
 }
 
-check_swapfile(){
-yad --window-icon "plurios-icon" \
-        --image "dialog-question" \
+alert_noswap(){
+    detect_the_swap_type
+yad --window-icon "ubiquity" \
+    --borders=15 \
+    --width=300 \
+    --height=100 \
+    --image "dialog-question" \
 	--title "$(translate 'Alert')" \
-	--text "$(translate 'No Swapfile found, do you want to create one?')" \
+	--text "$MESSAGE_SWAP\n$MESSAGE_TEXT" \
 	--button="$(translate 'Add')!gtk-add":0 \
 	--button="$(translate 'Cancel')!gtk-cancel":1 \
 	option=$?
@@ -69,4 +78,4 @@ yad --window-icon "plurios-icon" \
 }
 
 check_root
-check_swapfile
+alert_noswap
