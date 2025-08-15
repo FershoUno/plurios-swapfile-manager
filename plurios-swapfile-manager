@@ -2,17 +2,16 @@
 # Author: @FershoUno
 # Translation code made by crims0n from the MiniOS installer project
 
-
-check_root(){
+function check_root(){
     if [[ $EUID -ne 0 ]]; then
         pkexec "$0"
         exit 0
     fi
 }
 
-translate() {
+function translate() {
     local TEXT=$1
-    if [ ! -f /etc/plurios-release ]; then
+    if [ ! -f plurios-release ]; then
         local LNG=$(locale | grep LANG | cut -d= -f2 | cut -d_ -f1)
     else
         if grep -q Pro plurios-release ; then
@@ -34,33 +33,43 @@ translate() {
     fi
 }
 
-detect_the_swap_type() {
-    local NAME
-    while read -r NAME _; do
-        case "$NAME" in
-            /dev/zram*)
-                    MESSAGE_SWAP=$(echo "$(translate 'ZRAM detected:') $NAME")
-                    MESSAGE_TEXT=$(echo "$(translate 'It is not possible to manage this type of swap.')")
-                return
-                ;;
-            /dev/*)
-                    MESSAGE_SWAP=$(echo "$(translate 'Swap partition detected:') $NAME")
-                    MESSAGE_TEXT=$(echo "$(translate 'It is not possible to manage this type of swap.')")
-                return
-                ;;
-            *)
-                if [[ -f "$NAME" ]]; then
-                    MESSAGE_SWAP=$(echo "$(translate 'Swapfile detected:') $NAME")
-                    MESSAGE_TEXT=$(echo "$(translate 'It is possible to manage this type of swap.')")
-                    return
-                fi
-                ;;
-        esac
-    done < <(swapon --noheadings --show=NAME)
+function detect_swapfile() {
+    local NAME="/swapfile"
+    if grep -q $NAME /etc/fstab && [[ -f $NAME ]]; then
+        MESSAGE_SWAP=$(echo "$(translate 'Swapfile detected:') $NAME")
+        MESSAGE_TEXT=$(echo "$(translate 'It is possible to manage this type of swap.')")
+        menu_swapfile
+    fi
+    MESSAGE_SWAP="echo $(translate 'Swapfile not detected:')"
     MESSAGE_TEXT=$(echo "$(translate 'No active swap found.')")
+    menu_exit
 }
 
-alert_noswap(){
+function swapfile_status(){
+    SWAPFILE_SIZE=$(swapon --show NAME,USER --noheadings | grep /swapfile | awk '{print 3}')
+    SWAPFILE_USED=$(swapon --show NAME,USER --noheadings | grep /swapfile | awk '{print $4}')
+}
+
+function swapfile_generator(){
+    local SWAPFILE="/swapfile"
+    swapoff $SWAPFILE
+    rm -f $SWAPFILE
+    fallocate -l $SWAPFILE_SIZE $SWAPFILE
+    chmod 600 $SWAPFILE
+    mkswap $SWAPFILE
+    swapon $SWAPFILE
+}
+
+function menu_swapfile(){
+    yad --window-icon "ubiquity" \
+    --borders=15 \
+    --width=300 \
+    --height=100 \
+    --image "dialog-question" \
+    --title "$(translate Swapfile Manager)"
+}
+
+function alert_noswap(){
     detect_the_swap_type
 yad --window-icon "ubiquity" \
     --borders=15 \
@@ -76,6 +85,27 @@ yad --window-icon "ubiquity" \
 [[ $option -eq 0 ]] && echo "$(translate 'Creating SWAPFILE')"
 [[ $option -eq 1 ]] && echo "$(translate 'Exit')"
 }
+
+function main_menu(){
+MAIN_MENU=$(yad --title="Título de la Ventana" \
+    --text="<span font-size=\"large"\Texto descriptivo principal" \
+    --form \
+    --field="Descripción 1":LBL "" \
+    --field="Descripción 2":LBL "" \
+    --field="Descripción 3":LBL "" \
+    --field="Crear:BTN" "echo Botón 1" \
+    --field="Cambiar tamaño:BTN" "echo Botón 2" \
+    --field="Eliminar:BTN" "echo Botón 3" \
+    --button="Botón 4":4 \
+    --button="Botón 5":5 \
+    --button="Botón 6":6 \
+    --width=400 \
+    --columns=2 \
+    --no-separation
+)
+
+}
+
 
 check_root
 alert_noswap
