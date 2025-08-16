@@ -66,7 +66,7 @@ function menu_swapfile(){
     --width=300 \
     --height=100 \
     --image "dialog-question" \
-    --title "$(translate Swapfile Manager)"
+    --title "$(translate 'Swapfile Manager')"
 }
 
 function alert_noswap(){
@@ -87,25 +87,21 @@ yad --window-icon "ubiquity" \
 }
 
 function main_menu(){
-MAIN_MENU=$(yad --title="Título de la Ventana" \
-    --text="<span font-size=\"large"\Texto descriptivo principal" \
+MAIN_MENU=$(yad --title="PluriOS Swapfile Manager" \
+    --borders=10 \
+    --text="<span font-size=\"large\">Mensaje de ayuda para la swapfile</span>" \
     --form \
-    --field="Descripción 1":LBL "" \
-    --field="Descripción 2":LBL "" \
-    --field="Descripción 3":LBL "" \
-    --field="Crear:BTN" "echo Botón 1" \
-    --field="Cambiar tamaño:BTN" "echo Botón 2" \
-    --field="Eliminar:BTN" "echo Botón 3" \
-    --button="Botón 4":4 \
-    --button="Botón 5":5 \
-    --button="Botón 6":6 \
-    --width=400 \
-    --columns=2 \
-    --no-separation
-)
-
+    --field="Botón 1:FBTN" "" \
+    --field="Botón 2:FBTN" "" \
+    --field="Botón 3:FBTN" "" \
+    --columns=3 \
+    --button="Aplicar":0 \
+    --button="Salir":1 \
+    --width=400 
+    )
 }
 
 
-check_root
-alert_noswap
+#check_root
+#alert_noswap
+main_menu
