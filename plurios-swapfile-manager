@@ -1,6 +1,8 @@
 #!/bin/bash
 # Author: @FershoUno
-# Translation code made by crims0n from the MiniOS installer project
+# The translation code was used from the MiniOS Installer Tool project
+
+SWAPFILE="/swapfile"
 
 function check_root(){
     if [[ $EUID -ne 0 ]]; then
@@ -20,6 +22,7 @@ function translate() {
         LNG=ay
         fi
     fi
+    local LNG=$(locale | grep LANG | cut -d= -f2 | cut -d_ -f1)
     local TRANSLATION_FILE="translate/$LNG.json"
     if [ -f "$TRANSLATION_FILE" ]; then
         local TRANSLATION=$(jq -r --arg TEXT "$TEXT" '.[$TEXT]' "$TRANSLATION_FILE")
@@ -34,24 +37,93 @@ function translate() {
 }
 
 function detect_swapfile() {
-    local NAME="/swapfile"
-    if grep -q $NAME /etc/fstab && [[ -f $NAME ]]; then
-        MESSAGE_SWAP=$(echo "$(translate 'Swapfile detected:') $NAME")
-        MESSAGE_TEXT=$(echo "$(translate 'It is possible to manage this type of swap.')")
-        menu_swapfile
+    if  grep -q "$SWAPFILE" /etc/fstab && [[ -f $SWAPFILE ]]; then
+#    if  true; then
+        MESSAGE_SWAP="$(translate 'Swapfile detected:') $SWAPFILE"
+        MESSAGE_TEXT="$(translate 'It is possible to manage this type of swap.')"
+        check_swap_status
+    else
+        question_create_swapfile
     fi
-    MESSAGE_SWAP="echo $(translate 'Swapfile not detected:')"
-    MESSAGE_TEXT=$(echo "$(translate 'No active swap found.')")
-    menu_exit
 }
 
-function swapfile_status(){
-    SWAPFILE_SIZE=$(swapon --show NAME,USER --noheadings | grep /swapfile | awk '{print 3}')
-    SWAPFILE_USED=$(swapon --show NAME,USER --noheadings | grep /swapfile | awk '{print $4}')
+function check_swap_status() {
+    if  swapon --show | grep -q "/swapfile"; then
+        CURRENT_STATE="<span weight=\"bold\">$(translate 'Swapfile status:') <span foreground=\"green\">ENABLED</span></span>"
+        SWAPFILE_FLAG=true
+        swapfile_switch
+        swapfile_information
+    else
+        CURRENT_STATE="<span weight=\"bold\">$(translate 'Swapfile status:') <span foreground=\"red\">DISABLED</span></span>"
+        SWAPFILE_FLAG=false
+        swapfile_switch
+        swapfile_information
+    fi
+}
+
+function swapfile_switch(){
+    if $SWAPFILE_FLAG == true;then
+        ID_SWITCH=102
+        swapon -a
+    else
+        ID_SWITCH=103
+        swapoff -a
+    fi
+}
+
+function swapfile_information(){
+    SWAPFILE_SIZE=$(swapon --show NAME,USER --noheadings | grep $SWAPFILE | awk '{print 3}')
+    SWAPFILE_USED=$(swapon --show NAME,USER --noheadings | grep $SWAPFILE | awk '{print $4}')
+    SWAPFILE_SIZE=5G
+    SWAPFILE_USED=623M
+}
+
+function question_create_swapfile(){
+ yad --title="¡Aviso!" \
+    --center \
+    --borders=10 \
+    --width=250 \
+    --height=100 \
+    --text-align=center \
+    --text="<span weight=\"bold\">$(translate '¿Desea crear una swapfile?')</span>" \
+    --button=Si:100 \
+    --button=No:101 
+
+local RESPONSE=$?
+
+case $RESPONSE in
+    100)
+        echo "se ejecuto SI"
+    ;;
+    101)
+        echo "se ejecuto NO"
+        exit 1
+    ;;
+esac
+}
+
+function swapfile_size(){
+  R_ZRAM=$(yad --form \
+    --borders=10 \
+    --title="Configurar Swapfile" \
+    --image=gtk-info \
+        --width=500 \
+        --height=200 \
+    --center \
+    --text="<span weight=\"bold\"  size='x-large'>\n Especifique el tamaño de la nueva Swapfile\n</span>" \
+    --field="<span size='x-large'>Tamaño (MB)</span>:NUM" '1024!512..32768!512' \
+    --button="Aceptar:100" \
+    --button="Cancelar:101"
+)
+
+local SALIDA=$?
+
+echo ${R_ZRAM%|}
+
+echo $SALIDA
 }
 
 function swapfile_generator(){
-    local SWAPFILE="/swapfile"
     swapoff $SWAPFILE
     rm -f $SWAPFILE
     fallocate -l $SWAPFILE_SIZE $SWAPFILE
@@ -86,19 +158,41 @@ yad --window-icon "ubiquity" \
 [[ $option -eq 1 ]] && echo "$(translate 'Exit')"
 }
 
-function main_menu(){
-MAIN_MENU=$(yad --title="PluriOS Swapfile Manager" \
-    --borders=10 \
-    --text="<span font-size=\"large\">Mensaje de ayuda para la swapfile</span>" \
-    --form \
-    --field="Botón 1:FBTN" "" \
-    --field="Botón 2:FBTN" "" \
-    --field="Botón 3:FBTN" "" \
-    --columns=3 \
-    --button="Aplicar":0 \
-    --button="Salir":1 \
-    --width=400 
-    )
+function main_menu() {
+    detect_swapfile
+INFO_TEXT="$CURRENT_STATE\n\n$MESSAGE_SWAP\n$MESSAGE_TEXT\n$SWAPFILE_SIZE\n$SWAPFILE_USED"
+
+    yad --title="PluriOS Swapfile Manager" \
+        --borders=10 \
+        --width=500 \
+        --height=200 \
+        --text="<span size='x-large'>$INFO_TEXT</span>" \
+        --button="Actualizar":100 \
+        --button="Modificar":101 \
+        --button="Interruptor":$(echo $ID_SWITCH)
+
+    local MAIN_MENU=$?
+
+    echo "$MAIN_MENU"
+
+    case $MAIN_MENU in
+    100)
+        detect_swapfile
+        main_menu
+    ;;
+    101)
+        swapfile_size
+    ;;
+    102)
+        swapfile_switch
+        main_menu
+    ;;
+    103)
+        swapfile_switch
+        main_menu
+    ;;
+    esac
+
 }
 
 
