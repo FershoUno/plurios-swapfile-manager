@@ -37,8 +37,8 @@ function translate() {
 }
 
 function detect_swapfile() {
-    if  grep -q "$SWAPFILE" /etc/fstab && [[ -f $SWAPFILE ]]; then
-#    if  true; then
+#    if  grep -q "$SWAPFILE" /etc/fstab && [[ -f $SWAPFILE ]]; then
+    if  true; then
         MESSAGE_SWAP="$(translate 'Swapfile detected:') $SWAPFILE"
         MESSAGE_TEXT="$(translate 'It is possible to manage this type of swap.')"
         check_swap_status
@@ -48,7 +48,8 @@ function detect_swapfile() {
 }
 
 function check_swap_status() {
-    if  swapon --show | grep -q "/swapfile"; then
+#    if  swapon --show | grep -q "/swapfile"; then
+    if $DEMO; then
         CURRENT_STATE="<span weight=\"bold\">$(translate 'Swapfile status:') <span foreground=\"green\">ENABLED</span></span>"
         SWAPFILE_FLAG=true
         swapfile_switch
@@ -62,11 +63,13 @@ function check_swap_status() {
 }
 
 function swapfile_switch(){
-    if $SWAPFILE_FLAG == true;then
+    if [[ $SWAPFILE_FLAG == true ]];then
         ID_SWITCH=102
+        DEMO=false
         swapon -a
     else
         ID_SWITCH=103
+        DEMO=true
         swapoff -a
     fi
 }
@@ -74,8 +77,15 @@ function swapfile_switch(){
 function swapfile_information(){
     SWAPFILE_SIZE=$(swapon --show NAME,USER --noheadings | grep $SWAPFILE | awk '{print 3}')
     SWAPFILE_USED=$(swapon --show NAME,USER --noheadings | grep $SWAPFILE | awk '{print $4}')
-    SWAPFILE_SIZE=5G
-    SWAPFILE_USED=623M
+#    SWAPFILE_SIZE=5G
+#    SWAPFILE_USED=623M
+}
+
+function new_swapfile(){
+    fallocate -l $SWAPFILE_SIZE $SWAPFILE
+    chmod 600 $SWAPFILE
+    mkswap $SWAPFILE
+    swapon $SWAPFILE
 }
 
 function question_create_swapfile(){
@@ -93,7 +103,8 @@ local RESPONSE=$?
 
 case $RESPONSE in
     100)
-        echo "se ejecuto SI"
+        swapfile_size
+        new_swapfile
     ;;
     101)
         echo "se ejecuto NO"
@@ -116,12 +127,15 @@ function swapfile_size(){
     --button="Cancelar:101"
 )
 
-local SALIDA=$?
+local OPTION=$?
+SWAPFILE_SIZE=$(echo ${R_ZRAM%|})
 
-echo ${R_ZRAM%|}
+[[ $OPTION -eq 100 ]] && swapfile_generator
+[[ $OPTION -eq 101 ]] && exit 1
 
-echo $SALIDA
 }
+
+
 
 function swapfile_generator(){
     swapoff $SWAPFILE
@@ -139,23 +153,6 @@ function menu_swapfile(){
     --height=100 \
     --image "dialog-question" \
     --title "$(translate 'Swapfile Manager')"
-}
-
-function alert_noswap(){
-    detect_the_swap_type
-yad --window-icon "ubiquity" \
-    --borders=15 \
-    --width=300 \
-    --height=100 \
-    --image "dialog-question" \
-	--title "$(translate 'Alert')" \
-	--text "$MESSAGE_SWAP\n$MESSAGE_TEXT" \
-	--button="$(translate 'Add')!gtk-add":0 \
-	--button="$(translate 'Cancel')!gtk-cancel":1 \
-	option=$?
-
-[[ $option -eq 0 ]] && echo "$(translate 'Creating SWAPFILE')"
-[[ $option -eq 1 ]] && echo "$(translate 'Exit')"
 }
 
 function main_menu() {
