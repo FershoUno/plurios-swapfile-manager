@@ -3,6 +3,9 @@
 # The translation code was used from the MiniOS Installer Tool project
 
 SWAPFILE="/swapfile"
+FSTAB_FILE="/etc/fstab"
+LINE="/swapfile swap swap defaults 0 0"
+
 
 function check_root(){
     if [[ $EUID -ne 0 ]]; then
@@ -133,6 +136,26 @@ SWAPFILE_SIZE=$(echo ${R_ZRAM%|})
 [[ $OPTION -eq 100 ]] && swapfile_generator
 [[ $OPTION -eq 101 ]] && exit 1
 
+}
+
+add_swap_fstab() {
+    if ! grep -Fxq "$LINE" "$FSTAB_FILE"; then
+        sudo cp "$FSTAB" "$FSTAB_FILE.bak.$(date +%F-%H%M%S)"   # Backup
+        echo "$LINE" | sudo tee -a "$FSTAB_FILE" >/dev/null
+        echo "Línea añadida a $FSTAB_FILE"
+    else
+        echo "La línea ya existe en $FSTAB"
+    fi
+}
+
+remove_swap_fstab() {
+    if grep -Fxq "$LINE" "$FSTAB_FILE"; then
+        sudo cp "$FSTAB" "$FSTAB_FILE.bak.$(date +%F-%H%M%S)"   # Backup
+        sudo sed -i "\|$LINE|d" "$FSTAB_FILE"
+        echo "Línea eliminada de $FSTAB_FILE"
+    else
+        echo "La línea no existe en $FSTAB_FILE"
+    fi
 }
 
 
