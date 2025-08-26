@@ -84,13 +84,6 @@ function swapfile_information(){
 #    SWAPFILE_USED=623M
 }
 
-function new_swapfile(){
-    fallocate -l $SWAPFILE_SIZE $SWAPFILE
-    chmod 600 $SWAPFILE
-    mkswap $SWAPFILE
-    swapon $SWAPFILE
-}
-
 function question_create_swapfile(){
  yad --title="¡Aviso!" \
     --center \
@@ -158,12 +151,17 @@ remove_swap_fstab() {
     fi
 }
 
-
+function new_swapfile(){
+    fallocate -l ${SWAPFILE_SIZE}M $SWAPFILE
+    chmod 600 $SWAPFILE
+    mkswap $SWAPFILE
+    swapon $SWAPFILE
+}
 
 function swapfile_generator(){
     swapoff $SWAPFILE
     rm -f $SWAPFILE
-    fallocate -l $SWAPFILE_SIZE $SWAPFILE
+    fallocate -l ${SWAPFILE_SIZE}M $SWAPFILE
     chmod 600 $SWAPFILE
     mkswap $SWAPFILE
     swapon $SWAPFILE
