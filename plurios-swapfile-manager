@@ -40,8 +40,6 @@ function translate() {
 
 function detect_swapfile() {
     if  grep -q "$SWAPFILE" /etc/fstab && [[ -f $SWAPFILE ]]; then
-#        MESSAGE_SWAP="$(translate 'Swapfile detected'): $SWAPFILE"
-#        MESSAGE_TEXT="$(translate 'It is possible to manage this type of swap.')"
         check_swap_status
     else
 	NEW_SWAPFILE_FLAG=true
